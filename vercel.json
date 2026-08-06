@@ -1,0 +1,18 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+       "source": "/((?!icons/|manifest\\.json|robots\\.txt|assets/).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/storage-usage",
+      "schedule": "0 9 * * *"
+    }
+  ]
+}
