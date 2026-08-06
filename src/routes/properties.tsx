@@ -1,12 +1,19 @@
-import { useMemo, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import { SiteLayout, PageHero } from "../components/SiteLayout";
 import { PropertyCard, PropertyCardSkeleton } from "../components/PropertyCard";
 import { useProperties } from "../lib/hooks";
 import { CONTACT } from "../lib/data";
 import office from "../assets/office-interior.png.asset.json";
 
+const propertiesSearchSchema = z.object({
+  q: z.string().optional(),
+  category: z.string().optional(),
+});
+
 export const Route = createFileRoute("/properties")({
+  validateSearch: propertiesSearchSchema,
   head: () => ({
     meta: [
       { title: "Properties | Kushal Enterprises" },
@@ -31,8 +38,17 @@ const FILTERS = [
 
 function Properties() {
   const { data, loading } = useProperties();
-  const [active, setActive] = useState("all");
-  const [search, setSearch] = useState("");
+  const { q, category } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const [active, setActive] = useState(category ?? "all");
+  const [search, setSearch] = useState(q ?? "");
+
+  // Keep local state in sync if the URL's search params change
+  // (e.g. user searches a different area from the homepage and lands here again).
+  useEffect(() => {
+    setSearch(q ?? "");
+    setActive(category ?? "all");
+  }, [q, category]);
 
   const filtered = useMemo(() => {
     let rows = active === "all" ? data : data.filter((p) => p.category === active || p.type === active);
@@ -56,7 +72,10 @@ function Properties() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              navigate({ search: (prev) => ({ ...prev, q: e.target.value || undefined }) });
+            }}
             placeholder="Search properties by name or location..."
             className="mb-3 w-full max-w-md rounded-full border border-grey-light bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/60 focus:border-accent focus:outline-none"
           />
@@ -64,7 +83,10 @@ function Properties() {
             {FILTERS.map((f) => (
               <button
                 key={f.key}
-                onClick={() => setActive(f.key)}
+                onClick={() => {
+                  setActive(f.key);
+                  navigate({ search: (prev) => ({ ...prev, category: f.key === "all" ? undefined : f.key }) });
+                }}
                 className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
                   active === f.key ? "bg-emerald text-white" : "border border-grey-light text-white/80 hover:text-white"
                 }`}

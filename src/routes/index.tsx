@@ -34,6 +34,7 @@ type TabType = "Buy" | "Sell" | "Rent";
 function Home() {
   const { data } = useProperties();
   const [activeTab, setActiveTab] = useState<TabType>("Buy");
+  const [searchText, setSearchText] = useState("");
   const marqueeItems = data.length > 0 ? [...data, ...data] : [];
 
   const filteredProperties = data.filter((p) => {
@@ -91,12 +92,25 @@ function Home() {
             <div className="flex items-center gap-2 rounded-b-xl p-3" style={{ background: "rgba(255,255,255,0.95)" }}>
               <input
                 type="text"
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    document.getElementById("hero-search-btn")?.click();
+                  }
+                }}
                 placeholder={`Search ${activeTab} properties in Kalwa, Thane...`}
                 className="flex-1 text-sm outline-none px-2"
                 style={{ color: "#1B3A6B", background: "transparent" }}
               />
               <Link
+                id="hero-search-btn"
                 to="/properties"
+                search={{
+                  q: searchText.trim() || undefined,
+                  category: activeTab === "Buy" ? "Sale" : activeTab === "Rent" ? "Rent" : undefined,
+                }}
                 className="rounded-lg px-5 py-2 text-sm font-bold text-white transition-all hover:opacity-90"
                 style={{ background: "#1B3A6B", fontFamily: "Poppins, sans-serif" }}
               >
