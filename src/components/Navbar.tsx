@@ -18,6 +18,16 @@ export function Navbar() {
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
 
   return (
     <header
@@ -82,7 +92,10 @@ export function Navbar() {
 
       {/* Mobile overlay */}
       {open && (
-        <div className="fixed inset-0 z-50 flex flex-col lg:hidden" style={{ background: "#1B3A6B" }}>
+        <div
+          className="fixed inset-0 z-[100] flex h-[100dvh] w-screen flex-col overflow-y-auto lg:hidden"
+          style={{ background: "#1B3A6B", opacity: 1 }}
+        >
           <div className="flex items-center justify-between px-6 py-4">
             <Link to="/" className="flex items-center gap-3" onClick={() => setOpen(false)}>
               <div className="flex h-10 w-10 items-center justify-center rounded-lg overflow-hidden bg-white/10">

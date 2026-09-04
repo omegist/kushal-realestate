@@ -39,6 +39,7 @@ function Home() {
 
   const filteredProperties = data.filter((p) => {
     if (activeTab === "Buy") return p.category === "Sale";
+    if (activeTab === "Sell") return p.category === "Sale";
     if (activeTab === "Rent") return p.category === "Rent";
     return true;
   });
@@ -109,7 +110,7 @@ function Home() {
                 to="/properties"
                 search={{
                   q: searchText.trim() || undefined,
-                  category: activeTab === "Buy" ? "Sale" : activeTab === "Rent" ? "Rent" : undefined,
+                  category: activeTab === "Buy" || activeTab === "Sell" ? "Sale" : activeTab === "Rent" ? "Rent" : undefined,
                 }}
                 className="rounded-lg px-5 py-2 text-sm font-bold text-white transition-all hover:opacity-90"
                 style={{ background: "#1B3A6B", fontFamily: "Poppins, sans-serif" }}

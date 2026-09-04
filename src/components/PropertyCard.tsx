@@ -10,6 +10,8 @@ export function PropertyCard({ property }: { property: Property }) {
   const photos = property.photos ?? [];
   const features = (property.features ?? "").split(",").map((f) => f.trim()).filter(Boolean);
   const agency = getAgency(property.agency);
+  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}. ${typeof window !== "undefined" ? window.location.origin : ""}/properties`;
+  const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
   return (
     <>
@@ -64,6 +66,17 @@ export function PropertyCard({ property }: { property: Property }) {
             >
               View Photos
             </button>
+            <a
+              href={shareUrl}
+              target="_blank"
+              rel="noreferrer"
+              aria-label="Share this property on WhatsApp"
+              title="Share on WhatsApp"
+              className="flex items-center justify-center rounded-lg px-3 text-lg text-white transition-opacity hover:opacity-90"
+              style={{ background: "#25D366" }}
+            >
+              📤
+            </a>
             <button onClick={() => setInquiry(true)} className="flex-1 rounded-lg py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "#10B981" }}>
               Enquire Now
             </button>

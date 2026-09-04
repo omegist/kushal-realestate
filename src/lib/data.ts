@@ -53,7 +53,7 @@ export const WHATSAPP_LINK = `https://wa.me/${WHATSAPP_NUMBER}`;
 export const CONTACT = {
   name: "Anil Chandrakant Patil",
   phones: ["9029847968", "9326313320", "8424872525"],
-  emails: ["kushalenterprises@gmail.com", "anilpatil_30@yahoo.com"],
+  emails: ["kushalenterprises.4440.ap@gmail.com", "anilpatil_30@yahoo.com"],
   address:
     "Shop No. 5, Thakursingh Smruti Dham, Behind Domino's, Vithal Mandir Road, Kharigaon Kalwa, Thane - 400605",
   rera: "A51700014818",

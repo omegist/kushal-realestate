@@ -119,7 +119,7 @@ function About() {
                 📞 Phone (Alternate): <a href="tel:9326313320" className="font-semibold text-accent hover:underline">+91 9326313320</a>
               </p>
               <p>
-                ✉️ Email: <a href="mailto:anilpatil_30@yahoo.com" className="font-semibold text-accent hover:underline">anilpatil_30@yahoo.com</a>
+                ✉️ Email: <a href="mailto:kushalenterprises.4440.ap@gmail.com" className="font-semibold text-accent hover:underline">kushalenterprises.4440.ap@gmail.com</a>
               </p>
               <p>📍 Core Expertise: Kalwa, Thane, and surrounding areas</p>
             </div>
