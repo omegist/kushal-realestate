@@ -10,6 +10,7 @@ import office from "../assets/office-interior.png.asset.json";
 const propertiesSearchSchema = z.object({
   q: z.string().optional(),
   category: z.string().optional(),
+  id: z.string().optional(),
 });
 
 export const Route = createFileRoute("/properties")({
@@ -28,7 +29,6 @@ export const Route = createFileRoute("/properties")({
 
 const FILTERS = [
   { key: "all", label: "All" },
-  { key: "Sale", label: "For Sale", field: "category" },
   { key: "Rent", label: "For Rent", field: "category" },
   { key: "Residential", label: "Residential", field: "type" },
   { key: "Commercial", label: "Commercial", field: "type" },
@@ -37,21 +37,27 @@ const FILTERS = [
 ] as const;
 
 function Properties() {
-  const { data, loading } = useProperties();
-  const { q, category } = Route.useSearch();
+    const { data, loading } = useProperties();
+  const { q, category, id } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const [active, setActive] = useState(category ?? "all");
   const [search, setSearch] = useState(q ?? "");
 
-  // Keep local state in sync if the URL's search params change
-  // (e.g. user searches a different area from the homepage and lands here again).
   useEffect(() => {
     setSearch(q ?? "");
     setActive(category ?? "all");
   }, [q, category]);
 
+  // Shared-link view: only this one property, nothing else.
+  const sharedProperty = useMemo(() => (id ? data.find((p) => p.id === id) : undefined), [data, id]);
+
   const filtered = useMemo(() => {
-    let rows = active === "all" ? data : data.filter((p) => p.category === active || p.type === active);
+    let rows: typeof data;
+    if (active === "all") rows = data;
+    // "Sale" is a virtual bucket: any listing that isn't for rent (covers Sale, Resale, New Construction).
+    else if (active === "Sale") rows = data.filter((p) => p.category !== "Rent");
+    else rows = data.filter((p) => p.category === active || p.type === active);
+
     const q = search.trim().toLowerCase();
     if (q) {
       rows = rows.filter(
@@ -63,43 +69,81 @@ function Properties() {
     return rows;
   }, [data, active, search]);
 
-  return (
+    return (
     <SiteLayout>
-      <PageHero label="Our Listings" title="Properties" subtitle="Buy, Sell & Rent in Kalwa, Thane" bg={office.url} />
+      <PageHero
+        label="Our Listings"
+        title={id ? "Shared Property" : "Properties"}
+        subtitle={id ? "You've been sent a direct link to this listing" : "Buy, Sell & Rent in Kalwa, Thane"}
+        bg={office.url}
+      />
 
-      <div className="sticky top-16 z-30 border-b border-border" style={{ background: "rgba(13,21,38,0.92)", backdropFilter: "blur(10px)" }}>
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              navigate({ search: (prev) => ({ ...prev, q: e.target.value || undefined }) });
-            }}
-            placeholder="Search properties by name or location..."
-            className="mb-3 w-full max-w-md rounded-full border border-grey-light bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/60 focus:border-accent focus:outline-none"
-          />
-          <div className="flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
-              <button
-                key={f.key}
-                onClick={() => {
-                  setActive(f.key);
-                  navigate({ search: (prev) => ({ ...prev, category: f.key === "all" ? undefined : f.key }) });
-                }}
-                className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                  active === f.key ? "bg-emerald text-white" : "border border-grey-light text-white/80 hover:text-white"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+      {!id && (
+        <div className="sticky top-16 z-30 border-b border-border" style={{ background: "rgba(13,21,38,0.92)", backdropFilter: "blur(10px)" }}>
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                navigate({ search: (prev) => ({ ...prev, q: e.target.value || undefined }) });
+              }}
+              placeholder="Search properties by name or location..."
+              className="mb-3 w-full max-w-md rounded-full border border-grey-light bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/60 focus:border-accent focus:outline-none"
+            />
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => {
+                    setActive(f.key);
+                    navigate({ search: (prev) => ({ ...prev, category: f.key === "all" ? undefined : f.key }) });
+                  }}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                    active === f.key ? "bg-emerald text-white" : "border border-grey-light text-white/80 hover:text-white"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
-        {loading ? (
+        {id ? (
+          loading ? (
+            <div className="mx-auto max-w-sm">
+              <PropertyCardSkeleton />
+            </div>
+          ) : sharedProperty ? (
+            <>
+              <div className="mx-auto max-w-sm">
+                <PropertyCard property={sharedProperty} />
+              </div>
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => navigate({ search: {} })}
+                  className="rounded-full border border-grey-light px-5 py-2 text-sm font-medium text-white/80 hover:text-white"
+                >
+                  ← View all properties
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="glass mx-auto max-w-lg rounded-2xl p-10 text-center">
+              <div className="text-4xl">🔍</div>
+              <p className="mt-4 text-white">This property link is no longer available.</p>
+              <button
+                onClick={() => navigate({ search: {} })}
+                className="mt-6 rounded-full bg-emerald px-5 py-2 text-sm font-semibold text-white"
+              >
+                Browse all properties
+              </button>
+            </div>
+          )
+        ) : loading ? (
           <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <PropertyCardSkeleton key={i} />)}
           </div>

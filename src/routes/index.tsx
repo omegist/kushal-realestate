@@ -37,9 +37,9 @@ function Home() {
   const [searchText, setSearchText] = useState("");
   const marqueeItems = data.length > 0 ? [...data, ...data] : [];
 
-  const filteredProperties = data.filter((p) => {
-    if (activeTab === "Buy") return p.category === "Sale";
-    if (activeTab === "Sell") return p.category === "Sale";
+    const filteredProperties = data.filter((p) => {
+    // "Buy"/"Sell" = anything not explicitly for rent (covers Sale, Resale, New Construction).
+    if (activeTab === "Buy" || activeTab === "Sell") return p.category !== "Rent";
     if (activeTab === "Rent") return p.category === "Rent";
     return true;
   });

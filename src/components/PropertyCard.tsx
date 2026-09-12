@@ -10,7 +10,8 @@ export function PropertyCard({ property }: { property: Property }) {
   const photos = property.photos ?? [];
   const features = (property.features ?? "").split(",").map((f) => f.trim()).filter(Boolean);
   const agency = getAgency(property.agency);
-  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}. ${typeof window !== "undefined" ? window.location.origin : ""}/properties`;
+  const propertyLink = `${typeof window !== "undefined" ? window.location.origin : ""}/properties?id=${property.id}`;
+  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}. ${propertyLink}`;
   const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
   return (
