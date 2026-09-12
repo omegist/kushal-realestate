@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { AdminShell } from "../components/AdminShell";
-import { getAgency } from "../lib/data";
+import { getAgency, inferCategoryFromTitle, inferTypeFromTitle } from "../lib/data";
 import { supabase } from "../lib/supabaseClient";
 import { urlToKey } from "../lib/r2-client";
 import { getUploadUrl } from "./-api.upload";
@@ -371,6 +371,12 @@ function ManageProperties() {
     e.preventDefault();
     if (!editing) return;
 
+    const corrected: EditingProperty = {
+      ...editing,
+      type: inferTypeFromTitle(editing.title, editing.type),
+      category: inferCategoryFromTitle(editing.title, editing.category),
+    };
+
     const existingUrls = slots
       .filter((s): s is { kind: "url"; url: string } => s.kind === "url")
       .map((s) => s.url);
@@ -382,7 +388,7 @@ function ManageProperties() {
     // ── NEW PROPERTY ──────────────────────────────────────────────────────────
     if (isNew) {
       // Step 1: Insert the property with no photos yet to get the real ID
-      const { id: _id, created_at: _ca, ...payload } = editing as Property;
+      const { id: _id, created_at: _ca, ...payload } = corrected as Property;
       const { data: inserted, error: insertError } = await supabase
         .from("properties")
         .insert({ ...payload, photos: [] })
@@ -465,7 +471,7 @@ function ManageProperties() {
 
       // Step 2: Update the property record with all confirmed URLs
       const finalPhotos = [...existingUrls, ...uploadedUrls];
-      const { id: _id, created_at: _ca, ...payload } = editing as Property;
+      const { id: _id, created_at: _ca, ...payload } = corrected as Property;
       const { error: updateError } = await supabase
         .from("properties")
         .update({ ...payload, photos: finalPhotos })
@@ -637,8 +643,16 @@ function ManageProperties() {
               </select>
             </div>
 
-            <input required placeholder="Location *" value={editing.location}
-              onChange={(e) => setEditing((p) => p && { ...p, location: e.target.value })} className={inp} />
+                        <input required placeholder="Title *" value={editing.title}
+              onChange={(e) => setEditing((p) => p && { ...p, title: e.target.value })} className={inp} />
+            {editing.title.trim() && (
+              <p className="-mt-2 text-xs text-white/50">
+                Detected from title: <span className="font-semibold text-accent">{inferTypeFromTitle(editing.title, editing.type)}</span>
+                {" · "}
+                <span className="font-semibold text-accent">{inferCategoryFromTitle(editing.title, editing.category)}</span>
+                {" — this is used automatically on save, even if the dropdowns below say otherwise."}
+              </p>
+            )}
 
             <div className="grid gap-3 sm:grid-cols-2">
               <input placeholder="Area Buildup" value={editing.area_buildup ?? ""} onChange={(e) => setEditing((p) => p && { ...p, area_buildup: e.target.value })} className={inp} />

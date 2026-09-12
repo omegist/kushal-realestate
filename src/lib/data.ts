@@ -38,6 +38,70 @@ export function getAgency(agency: string | null | undefined): AgencyInfo {
   return AGENCIES[agency as "kushal" | "bhoomi"] ?? AGENCIES.kushal;
 }
 
+// ─── Title-based classification ────────────────────────────────────────────
+//
+// Admins don't always pick the right "type"/"category" dropdown when adding a
+// listing (most default to Residential/Sale). To keep the Properties page
+// filters accurate — for both new listings and ones already in the database —
+// we cross-check the stored fields against keywords found in the title, and
+// let a strong title signal win. This runs both at admin-save time (so the
+// stored fields get corrected) and at display time on the public site (so
+// older, never-edited listings still land in the right tab).
+
+const COMMERCIAL_KEYWORDS = [
+  "commercial", "shop", "showroom", "office", "godown", "warehouse",
+  "industrial", "gala", "shed", "co-working", "coworking", "business centre",
+  "business center", "mall", "retail",
+];
+const RESALE_KEYWORDS = ["resale", "re-sale"];
+const NEW_PROJECT_KEYWORDS = [
+  "new construction", "new project", "under construction", "new launch",
+  "pre-launch", "prelaunch", "upcoming project",
+];
+const RENTAL_KEYWORDS = ["for rent", "on rent", "rent", "lease", "leasing", "rental"];
+
+function titleHasKeyword(title: string, keywords: string[]): boolean {
+  const t = (title || "").toLowerCase();
+  return keywords.some((k) => {
+    if (k.includes(" ") || k.includes("-")) return t.includes(k);
+    return new RegExp(`\\b${k}\\b`, "i").test(t);
+  });
+}
+
+/** Infers the property "type" from its title, falling back to the stored value. Commercial keywords win. */
+export function inferTypeFromTitle(title: string, fallbackType?: string): string {
+  if (titleHasKeyword(title, COMMERCIAL_KEYWORDS)) return "Commercial";
+  return fallbackType || "Residential";
+}
+
+/** Infers the property "category" from its title, falling back to the stored value. */
+export function inferCategoryFromTitle(title: string, fallbackCategory?: string): string {
+  if (titleHasKeyword(title, RESALE_KEYWORDS)) return "Resale";
+  if (titleHasKeyword(title, NEW_PROJECT_KEYWORDS)) return "New Construction";
+  if (titleHasKeyword(title, RENTAL_KEYWORDS)) return "Rent";
+  return fallbackCategory || "Sale";
+}
+
+/** True if a listing should show up under the "Commercial" filter, whatever its stored `type` says. */
+export function isCommercialProperty(p: Pick<Property, "title" | "type">): boolean {
+  return p.type === "Commercial" || inferTypeFromTitle(p.title) === "Commercial";
+}
+
+/** True if a listing should show up under the "Resale" filter. */
+export function isResaleProperty(p: Pick<Property, "title" | "category">): boolean {
+  return p.category === "Resale" || inferCategoryFromTitle(p.title) === "Resale";
+}
+
+/** True if a listing should show up under the "New Project" filter. */
+export function isNewProjectProperty(p: Pick<Property, "title" | "category">): boolean {
+  return p.category === "New Construction" || inferCategoryFromTitle(p.title) === "New Construction";
+}
+
+/** True if a listing should show up under the "Rental" filter. */
+export function isRentalProperty(p: Pick<Property, "title" | "category">): boolean {
+  return p.category === "Rent" || inferCategoryFromTitle(p.title) === "Rent";
+}
+
 export interface TeamMember {
   id: string;
   name: string;

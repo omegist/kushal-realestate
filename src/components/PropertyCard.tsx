@@ -10,9 +10,21 @@ export function PropertyCard({ property }: { property: Property }) {
   const photos = property.photos ?? [];
   const features = (property.features ?? "").split(",").map((f) => f.trim()).filter(Boolean);
   const agency = getAgency(property.agency);
-  const propertyLink = `${typeof window !== "undefined" ? window.location.origin : ""}/properties?id=${property.id}`;
-  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}. ${propertyLink}`;
-  const shareUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+    const propertyLink = `${typeof window !== "undefined" ? window.location.origin : ""}/properties?id=${property.id}`;
+  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}.`;
+  const shareUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${propertyLink}`)}`;
+
+  const handleShare = async () => {
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: property.title, text: shareText, url: propertyLink });
+      } catch {
+        // User closed the share sheet without picking anything — do nothing.
+      }
+      return;
+    }
+    window.open(shareUrl, "_blank", "noreferrer");
+  };
 
   return (
     <>
@@ -67,17 +79,18 @@ export function PropertyCard({ property }: { property: Property }) {
             >
               View Photos
             </button>
-            <a
-              href={shareUrl}
-              target="_blank"
-              rel="noreferrer"
-              aria-label="Share this property on WhatsApp"
-              title="Share on WhatsApp"
-              className="flex items-center justify-center rounded-lg px-3 text-lg text-white transition-opacity hover:opacity-90"
-              style={{ background: "#25D366" }}
+                        <button
+              type="button"
+              onClick={handleShare}
+              aria-label="Share this property"
+              title="Share this property"
+              className="flex items-center justify-center rounded-lg px-3 text-white transition-opacity hover:opacity-90"
+              style={{ background: "#0D1526", border: "1px solid rgba(255,255,255,0.15)" }}
             >
-              📤
-            </a>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.04 9.81C6.5 9.31 5.79 9 5 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
+              </svg>
+            </button>
             <button onClick={() => setInquiry(true)} className="flex-1 rounded-lg py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "#10B981" }}>
               Enquire Now
             </button>
