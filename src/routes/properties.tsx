@@ -1,122 +1,173 @@
-import { useState } from "react";
-import { PhotoLightbox } from "./PhotoLightbox";
-import { InquiryModal } from "./InquiryModal";
-import { getAgency, type Property } from "../lib/data";
+import { useEffect, useMemo, useState } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
+import { SiteLayout, PageHero } from "../components/SiteLayout";
+import { PropertyCard, PropertyCardSkeleton } from "../components/PropertyCard";
+import { useProperties } from "../lib/hooks";
+import { CONTACT, isCommercialProperty, isNewProjectProperty, isRentalProperty, isResaleProperty } from "../lib/data";
+import office from "../assets/office-interior.png.asset.json";
 
-export function PropertyCard({ property }: { property: Property }) {
-  const [lightbox, setLightbox] = useState(false);
-  const [lbIndex, setLbIndex] = useState(0);
-  const [inquiry, setInquiry] = useState(false);
-  const photos = property.photos ?? [];
-  const features = (property.features ?? "").split(",").map((f) => f.trim()).filter(Boolean);
-  const agency = getAgency(property.agency);
-  const propertyLink = `${typeof window !== "undefined" ? window.location.origin : ""}/properties?id=${property.id}`;
-  const shareText = `Check out this property: ${property.title} — ${property.price} in ${property.location}.`;
-  const shareUrl = `https://wa.me/?text=${encodeURIComponent(`${shareText} ${propertyLink}`)}`;
+const propertiesSearchSchema = z.object({
+  q: z.string().optional(),
+  category: z.string().optional(),
+  id: z.string().optional(),
+});
 
-  // Opens the device's native full-screen share sheet (WhatsApp, SMS, email, copy link, etc.)
-  // when supported, and falls back to a direct WhatsApp share link otherwise.
-  const handleShare = async () => {
-    if (typeof navigator !== "undefined" && navigator.share) {
-      try {
-        await navigator.share({ title: property.title, text: shareText, url: propertyLink });
-      } catch {
-        // User dismissed the share sheet — nothing to do.
-      }
-      return;
+export const Route = createFileRoute("/properties")({
+  validateSearch: propertiesSearchSchema,
+  head: () => ({
+    meta: [
+      { title: "Properties | Kushal Enterprises" },
+      { name: "description", content: "Browse residential, commercial and plot listings for sale and rent in Kalwa, Thane." },
+      { property: "og:title", content: "Properties — Kushal Enterprises" },
+      { property: "og:url", content: "/properties" },
+    ],
+    links: [{ rel: "canonical", href: "/properties" }],
+  }),
+  component: Properties,
+});
+
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "New Construction", label: "New Project" },
+  { key: "Resale", label: "Resale" },
+  { key: "Rent", label: "Rental" },
+  { key: "Commercial", label: "Commercial" },
+] as const;
+
+function Properties() {
+    const { data, loading } = useProperties();
+  const { q, category, id } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
+  const [active, setActive] = useState(category ?? "all");
+  const [search, setSearch] = useState(q ?? "");
+
+  useEffect(() => {
+    setSearch(q ?? "");
+    setActive(category ?? "all");
+  }, [q, category]);
+
+  // Shared-link view: only this one property, nothing else.
+  const sharedProperty = useMemo(() => (id ? data.find((p) => p.id === id) : undefined), [data, id]);
+
+  const filtered = useMemo(() => {
+    let rows: typeof data;
+    if (active === "all") rows = data;
+    // Commercial/Resale/New Construction/Rent are matched against the stored field first,
+    // then cross-checked against the title — this way listings that were saved with the
+    // wrong dropdown value (e.g. a commercial shop saved as "Residential") still land in
+    // the right tab, for both older and newly added properties.
+    else if (active === "Commercial") rows = data.filter(isCommercialProperty);
+    else if (active === "Resale") rows = data.filter(isResaleProperty);
+    else if (active === "New Construction") rows = data.filter(isNewProjectProperty);
+    else if (active === "Rent") rows = data.filter(isRentalProperty);
+    else rows = data.filter((p) => p.category === active || p.type === active);
+
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          (p.location ?? "").toLowerCase().includes(q)
+      );
     }
-    window.open(shareUrl, "_blank", "noreferrer");
-  };
+    return rows;
+  }, [data, active, search]);
 
-  return (
-    <>
-      <div className="glass group flex flex-col overflow-hidden rounded-2xl transition-all hover:-translate-y-1 hover:accent-border">
-        <div className="relative h-52 overflow-hidden">
-          {photos.length > 0 ? (
-            <img src={photos[0]} alt={property.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center bg-primary-pale text-4xl text-grey-mid">🏢</div>
-          )}
-          <span className="absolute left-3 top-3 rounded-md bg-accent px-2.5 py-1 text-xs font-bold text-white">{property.category}</span>
-          <span className="absolute right-3 top-3 rounded-md px-2.5 py-1 text-xs font-bold text-white" style={{ background: "#10B981" }}>{property.status ?? "Active"}</span>
-          {photos.length > 0 && (
-            <span className="absolute bottom-3 right-3 rounded-md bg-primary/80 px-2 py-1 text-xs text-white">📷 {photos.length} photos</span>
-          )}
-        </div>
+    return (
+    <SiteLayout>
+      <PageHero
+        label="Our Listings"
+        title={id ? "Shared Property" : "Properties"}
+        subtitle={id ? "You've been sent a direct link to this listing" : "Buy, Sell & Rent in Kalwa, Thane"}
+        bg={office.url}
+      />
 
-        <div className="flex flex-1 flex-col p-5">
-          <span className="mb-2 inline-flex w-fit items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2.5 py-0.5 text-[11px] font-semibold text-accent">
-            🏷️ {agency.label}
-          </span>
-          <h3 className="font-display text-lg font-bold leading-snug text-primary">{property.title}</h3>
-          <p className="mt-1 text-sm" style={{ color: "#10B981" }}>📍 {property.location}</p>
-
-          <div className="mt-3 space-y-1 text-xs text-grey-dark">
-            {(property.area_buildup || property.area_carpet) && (
-              <p>📐 {property.area_buildup ? `Buildup ${property.area_buildup}` : ""}{property.area_buildup && property.area_carpet ? " · " : ""}{property.area_carpet ? `Carpet ${property.area_carpet}` : ""}</p>
-            )}
-            {property.floor && <p>🏢 Floor {property.floor}{property.total_floors ? ` of ${property.total_floors}` : ""}</p>}
-            {property.construction_age && <p>🕒 {property.construction_age}</p>}
-          </div>
-
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="font-display text-xl font-bold text-accent">{property.price}</span>
-            {property.price_negotiable && <span className="rounded px-2 py-0.5 text-[10px] font-semibold" style={{ background: "rgba(16,185,129,0.12)", color: "#10B981" }}>Negotiable</span>}
-          </div>
-
-          {features.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {features.slice(0, 3).map((f) => (
-                <span key={f} className="rounded-full border border-grey-light px-2 py-0.5 text-[11px] text-grey-dark">{f}</span>
+      {!id && (
+        <div className="sticky top-16 z-30 border-b border-border" style={{ background: "rgba(13,21,38,0.92)", backdropFilter: "blur(10px)" }}>
+          <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                navigate({ search: (prev) => ({ ...prev, q: e.target.value || undefined }) });
+              }}
+              placeholder="Search properties by name or location..."
+              className="mb-3 w-full max-w-md rounded-full border border-grey-light bg-white/10 px-4 py-2 text-sm text-white placeholder:text-white/60 focus:border-accent focus:outline-none"
+            />
+            <div className="flex flex-wrap gap-2">
+              {FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => {
+                    setActive(f.key);
+                    navigate({ search: (prev) => ({ ...prev, category: f.key === "all" ? undefined : f.key }) });
+                  }}
+                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                    active === f.key ? "bg-emerald text-white" : "border border-grey-light text-white/80 hover:text-white"
+                  }`}
+                >
+                  {f.label}
+                </button>
               ))}
-              {features.length > 3 && <span className="rounded-full border border-grey-light px-2 py-0.5 text-[11px] text-accent">+{features.length - 3} more</span>}
             </div>
-          )}
-
-          <div className="mt-5 flex gap-2 pt-1">
-            <button
-              onClick={() => { setLbIndex(0); setLightbox(true); }}
-              disabled={photos.length === 0}
-              className="flex-1 rounded-lg border border-accent/40 py-2 text-sm font-semibold text-accent transition-colors hover:bg-accent/10 disabled:opacity-40"
-            >
-              View Photos
-            </button>
-            <button
-              type="button"
-              onClick={handleShare}
-              aria-label="Share this property"
-              title="Share this property"
-              className="flex items-center justify-center rounded-lg px-3 text-white transition-opacity hover:opacity-90"
-              style={{ background: "#0D1526", border: "1px solid rgba(255,255,255,0.15)" }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L7.04 9.81C6.5 9.31 5.79 9 5 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92 1.61 0 2.92-1.31 2.92-2.92s-1.31-2.92-2.92-2.92z" />
-              </svg>
-            </button>
-            <button onClick={() => setInquiry(true)} className="flex-1 rounded-lg py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90" style={{ background: "#10B981" }}>
-              Enquire Now
-            </button>
           </div>
         </div>
-      </div>
-
-      {lightbox && photos.length > 0 && (
-        <PhotoLightbox title={property.title} photos={photos} index={lbIndex} setIndex={setLbIndex} onClose={() => setLightbox(false)} />
       )}
-      {inquiry && <InquiryModal property={property} onClose={() => setInquiry(false)} />}
-    </>
-  );
-}
 
-export function PropertyCardSkeleton() {
-  return (
-    <div className="glass animate-pulse overflow-hidden rounded-2xl">
-      <div className="h-52 bg-primary-pale" />
-      <div className="space-y-3 p-5">
-        <div className="h-5 w-3/4 rounded bg-primary-pale" />
-        <div className="h-3 w-1/2 rounded bg-primary-pale" />
-        <div className="h-6 w-1/3 rounded bg-primary-pale" />
-      </div>
-    </div>
+      <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
+        {id ? (
+          loading ? (
+            <div className="mx-auto max-w-sm">
+              <PropertyCardSkeleton />
+            </div>
+          ) : sharedProperty ? (
+            <>
+              <div className="mx-auto max-w-sm">
+                <PropertyCard property={sharedProperty} />
+              </div>
+              <div className="mt-8 text-center">
+                <button
+                  onClick={() => navigate({ search: {} })}
+                  className="rounded-full border border-grey-light px-5 py-2 text-sm font-medium text-white/80 hover:text-white"
+                >
+                  ← View all properties
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="glass mx-auto max-w-lg rounded-2xl p-10 text-center">
+              <div className="text-4xl">🔍</div>
+              <p className="mt-4 text-white">This property link is no longer available.</p>
+              <button
+                onClick={() => navigate({ search: {} })}
+                className="mt-6 rounded-full bg-emerald px-5 py-2 text-sm font-semibold text-white"
+              >
+                Browse all properties
+              </button>
+            </div>
+          )
+        ) : loading ? (
+          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => <PropertyCardSkeleton key={i} />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="glass mx-auto max-w-lg rounded-2xl p-10 text-center">
+            <div className="text-4xl">🔍</div>
+            <p className="mt-4 text-white">No properties found in this category. Contact us directly for more listings.</p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {CONTACT.phones.map((p) => (
+                <a key={p} href={`tel:${p}`} className="rounded-full bg-emerald px-5 py-2 text-sm font-semibold text-white">📞 {p}</a>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((p) => <PropertyCard key={p.id} property={p} />)}
+          </div>
+        )}
+      </section>
+    </SiteLayout>
   );
 }
